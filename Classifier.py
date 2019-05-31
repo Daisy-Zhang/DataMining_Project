@@ -2,7 +2,7 @@ import csv
 import re
 from string import digits
 
-class Classification(object):
+class Classifier(object):
     def __init__(self):
         self.train_id = []          # train.csv:id  (id by string)
         self.train_title1 = {}      # train.csv: id -> title1
@@ -79,8 +79,8 @@ class Classification(object):
         print("DATA Pre-Process DONE")
 
 if __name__ == "__main__":
-    my_classification = Classification()
-    my_classification.readTrainFile("train.csv")
-    my_classification.readTestFile("test.csv")
-    my_classification.dataPreProcess()
+    my_classifier = Classifier()
+    my_classifier.readTrainFile("train.csv")
+    my_classifier.readTestFile("test.csv")
+    my_classifier.dataPreProcess()
     print("ALL DONE")
