@@ -43,21 +43,21 @@ class Classifier(object):
     def dataPreProcess(self):
         remove_digits = str.maketrans('', '', digits)
         # remove Chinese stop words, not sure
-        stop_words = ["的", "地", "得"]
+        stop_words = ["的", "地", "得", " "]
 
         # train.csv
         for id in self.train_id:
             # remove number
             self.train_title1[id] = self.train_title1[id].translate(remove_digits)
             # remove symbol
-            self.train_title1[id] = re.sub("[+\.\!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.train_title1[id])
+            self.train_title1[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.train_title1[id])
             # to lowercase
             self.train_title1[id] = self.train_title1[id].lower()
             for stopword in stop_words:
                 self.train_title1[id].replace(stopword, "")
 
             self.train_title2[id] = self.train_title2[id].translate(remove_digits)
-            self.train_title2[id] = re.sub("[+\.\!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.train_title2[id])
+            self.train_title2[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.train_title2[id])
             self.train_title2[id] = self.train_title2[id].lower()
             for stopword in stop_words:
                 self.train_title2[id].replace(stopword, "")
@@ -65,13 +65,13 @@ class Classifier(object):
         # test.csv
         for id in self.test_id:
             self.test_title1[id] = self.test_title1[id].translate(remove_digits)
-            self.test_title1[id] = re.sub("[+\.\!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title1[id])
+            self.test_title1[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title1[id])
             self.test_title1[id] = self.test_title1[id].lower()
             for stopword in stop_words:
                 self.test_title1[id].replace(stopword, "")
 
             self.test_title2[id] = self.test_title2[id].translate(remove_digits)
-            self.test_title2[id] = re.sub("[+\.\!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title2[id])
+            self.test_title2[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title2[id])
             self.test_title2[id] = self.test_title2[id].lower()
             for stopword in stop_words:
                 self.test_title2[id].replace(stopword, "")
@@ -83,4 +83,6 @@ if __name__ == "__main__":
     my_classifier.readTrainFile("train.csv")
     my_classifier.readTestFile("test.csv")
     my_classifier.dataPreProcess()
+    for i in my_classifier.train_id:
+        print(my_classifier.train_title1[i])
     print("ALL DONE")
