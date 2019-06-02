@@ -1,6 +1,8 @@
 import csv
 import re
 from string import digits
+from math import log
+import jieba
 
 class Classifier(object):
     def __init__(self):
@@ -13,8 +15,10 @@ class Classifier(object):
         self.test_title1 = {}       # test.csv: id -> title1
         self.test_title2 = {}       # test.csv: id -> title2
 
-        self.result_label = ["agreed", "disagreed", "unrelated"]
+        self.idf = {}
+        self.tot = 0
 
+        self.result_label = ["agreed", "disagreed", "unrelated"]
     def readTrainFile(self, path):
         train_reader = csv.reader(open(path, encoding='utf-8'))
         flag = 0
@@ -78,9 +82,53 @@ class Classifier(object):
         
         print("DATA Pre-Process DONE")
 
+    def StringProcess(self, wds):#input the string
+        mp = {}
+        wd = jieba.cut(wds.strip())
+        for w in wd:
+            if not w in mp:
+                mp[w] = 1
+                if not w in self.idf:
+                    self.idf[w] = 1
+                else:
+                    self.idf[w] = self.idf[w] + 1
+            else:
+                mp[w] = mp[w] + 1
+        return [wds, mp]	#return the tuple (string, tf vector of the string)
+
+    def TfIdfCalculate(self):
+        for id in self.train_id:
+            self.tot = self.tot + 1
+            self.train_title1[id] = self.StringProcess(self.train_title1[id])
+            self.tot = self.tot + 1
+            self.train_title2[id] = self.StringProcess(self.train_title2[id])
+        for id in self.test_id:
+            self.tot = self.tot + 1
+            self.test_title1[id] = self.StringProcess(self.test_title1[id])
+            self.tot = self.tot + 1
+            self.test_title2[id] = self.StringProcess(self.test_title2[id])
+
+        for wd in self.idf:
+            self.idf[wd] = log(self.tot / self.idf[wd])
+        printf("IDF Calculate Finished")
+        for id in self.train_id:
+            for wd in self.train_title1[id][1]:
+                self.train_title1[id][1][wd] *= self.idf[wd]
+            for wd in self.train_title2[id][1]:
+                self.train_title2[id][1][wd] *= self.idf[wd]
+        for id in self.test_id:
+            for wd in self.test_title1[id][1]:
+                self.test_title1[id][1][wd] *= self.idf[wd]
+            for wd in self.test_title2[id][1]:
+                self.test_title2[id][1][wd] *= self.idf[wd]
+        print ("TF_IDF Calculate Finished")
+
+
 if __name__ == "__main__":
     my_classifier = Classifier()
-    my_classifier.readTrainFile("train.csv")
-    my_classifier.readTestFile("test.csv")
+    my_classifier.readTrainFile("../DM_project_data/train.csv")
+    my_classifier.readTestFile("../DM_project_data/test.csv")
     my_classifier.dataPreProcess()
+    my_classifier.TfIdfCalculate()
+
     print("ALL DONE")
