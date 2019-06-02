@@ -3,6 +3,7 @@ import re
 from string import digits
 from math import log
 import jieba
+import math
 
 class Classifier(object):
     def __init__(self):
@@ -17,6 +18,10 @@ class Classifier(object):
 
         self.idf = {}
         self.tot = 0
+
+        self.train_unrelated_dis = 0.0
+        self.train_agreed_dis = 0.0
+        self.train_disagreed_dis = 0.0
 
         self.result_label = ["agreed", "disagreed", "unrelated"]
     def readTrainFile(self, path):
@@ -110,7 +115,7 @@ class Classifier(object):
 
         for wd in self.idf:
             self.idf[wd] = log(self.tot / self.idf[wd])
-        printf("IDF Calculate Finished")
+        print("IDF Calculate Finished")
         for id in self.train_id:
             for wd in self.train_title1[id][1]:
                 self.train_title1[id][1][wd] *= self.idf[wd]
@@ -122,18 +127,71 @@ class Classifier(object):
             for wd in self.test_title2[id][1]:
                 self.test_title2[id][1][wd] *= self.idf[wd]
         print ("TF_IDF Calculate Finished")
+        
+    def calCosDis(self, dict1, dict2):
+        a = 0
+        b = 0
+        c = 0
+        for wd1 in dict1:
+            if wd1 in dict2:
+                a += dict1[wd1] * dict2[wd1]
 
+        for wd1 in dict1:
+            b += dict1[wd1] * dict1[wd1]
+        b = math.sqrt(b)
+
+        for wd2 in dict2:
+            c += dict2[wd2] * dict2[wd2]
+        c = math.sqrt(c)
+
+        if b == 0 or c == 0:
+            #print("division by zero")
+            return 0
+
+        return a / (b * c)
+
+    def trainCosDisProcess(self):
+        train_tot = 0
+        for i in self.train_id:
+            train_tot += 1
+            if self.train_label[i] == 'agreed':
+                self.train_agreed_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
+
+            elif self.train_label[i] == 'disagreed':
+                self.train_disagreed_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
+
+            elif self.train_label[i] == 'unrelated':
+                self.train_unrelated_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
+
+        self.train_agreed_dis = self.train_agreed_dis / train_tot
+        self.train_disagreed_dis = self.train_disagreed_dis / train_tot
+        self.train_unrelated_dis = self.train_unrelated_dis / train_tot
+        #print(self.train_agreed_dis)     #0.13005
+        #print(self.train_disagreed_dis)  #0.01019
+        #print(self.train_unrelated_dis)  #0.09972
+
+        print("train Cos Dis Pro Done")
+
+    def getResult(self):
+        result_file = open('result.txt', 'w')
+        for i in self.test_id:
+            tmp_dis = self.calCosDis(self.test_title1[i][1], self.test_title2[i][1])
+            if tmp_dis <= self.train_disagreed_dis:
+                result_file.write(i + "	" + "disagreed" + "\n")
+            elif tmp_dis <= self.train_agreed_dis:
+                result_file.write(i + "	" + "unrelated" + "\n")
+            else:
+                result_file.write(i + "	" + "agreed" + "\n")
+        result_file.close()
+        print("get Result Done")
 
 if __name__ == "__main__":
     my_classifier = Classifier()
     my_classifier.readTrainFile("../DM_project_data/train.csv")
     my_classifier.readTestFile("../DM_project_data/test.csv")
     my_classifier.dataPreProcess()
-<<<<<<< HEAD
     my_classifier.TfIdfCalculate()
+    my_classifier.trainCosDisProcess()
+    my_classifier.getResult()
 
-=======
-    for i in my_classifier.train_id:
-        print(my_classifier.train_title1[i])
->>>>>>> 075e2ad45d149cfde00de9a53a692b77d9535db7
     print("ALL DONE")
