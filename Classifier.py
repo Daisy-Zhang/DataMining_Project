@@ -128,6 +128,20 @@ class Classifier(object):
                 self.test_title2[id][1][wd] *= self.idf[wd]
         print ("TF_IDF Calculate Finished")
         
+    def calEuDis(self, dict1, dict2):
+        tmp = 0
+        for wd1 in dict1:
+            if wd1 in dict2:
+                tmp += math.pow(dict1[wd1] - dict2[wd1], 2)
+            else:
+                tmp += math.pow(dict1[wd1], 2)
+        
+        for wd2 in dict2:
+            if wd2 not in dict1:
+                tmp += math.pow(dict2[wd2], 2)
+        
+        return math.sqrt(tmp)
+    
     def calCosDis(self, dict1, dict2):
         a = 0
         b = 0
@@ -154,34 +168,55 @@ class Classifier(object):
         train_tot = 0
         for i in self.train_id:
             train_tot += 1
-            if self.train_label[i] == 'agreed':
+            # Cos dis
+            '''if self.train_label[i] == 'agreed':
                 self.train_agreed_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
 
             elif self.train_label[i] == 'disagreed':
                 self.train_disagreed_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
 
             elif self.train_label[i] == 'unrelated':
-                self.train_unrelated_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])
+                self.train_unrelated_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])'''
+            # Eu dis
+            tmp = self.calEuDis(self.train_title1[i][1], self.train_title2[i][1])
+            if self.train_label[i] == 'agreed':
+                self.train_agreed_dis += tmp
+
+            elif self.train_label[i] == 'disagreed':
+                self.train_disagreed_dis += tmp
+
+            elif self.train_label[i] == 'unrelated':
+                self.train_unrelated_dis += tmp
 
         self.train_agreed_dis = self.train_agreed_dis / train_tot
         self.train_disagreed_dis = self.train_disagreed_dis / train_tot
         self.train_unrelated_dis = self.train_unrelated_dis / train_tot
-        #print(self.train_agreed_dis)     #0.13005
-        #print(self.train_disagreed_dis)  #0.01019
-        #print(self.train_unrelated_dis)  #0.09972
+        print(self.train_agreed_dis)     #cos: 0.13005  Eu: 6.5795
+        print(self.train_disagreed_dis)  #cos: 0.01019  Eu: 0.6002
+        print(self.train_unrelated_dis)  #cos: 0.09972  Eu: 20.3855
 
         print("train Cos Dis Pro Done")
 
     def getResult(self):
         result_file = open('result.txt', 'w')
         for i in self.test_id:
-            tmp_dis = self.calCosDis(self.test_title1[i][1], self.test_title2[i][1])
+            # Cos
+            '''tmp_dis = self.calCosDis(self.test_title1[i][1], self.test_title2[i][1])
             if tmp_dis <= self.train_disagreed_dis:
                 result_file.write(i + "	" + "disagreed" + "\n")
             elif tmp_dis <= self.train_agreed_dis:
                 result_file.write(i + "	" + "unrelated" + "\n")
             else:
+                result_file.write(i + "	" + "agreed" + "\n")'''
+            # Eu
+            tmp_dis = self.calEuDis(self.test_title1[i][1], self.test_title2[i][1])
+            if tmp_dis >= self.train_unrelated_dis:
+                result_file.write(i + "	" + "unrelated" + "\n")
+            elif tmp_dis >= self.train_disagreed_dis:
                 result_file.write(i + "	" + "agreed" + "\n")
+            else:
+                result_file.write(i + "	" + "disagreed" + "\n")
+
         result_file.close()
         print("get Result Done")
 
