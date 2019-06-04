@@ -4,6 +4,7 @@ from string import digits
 from math import log
 import jieba
 import math
+import matplotlib.pyplot as plt
 
 class Classifier(object):
     def __init__(self):
@@ -22,6 +23,10 @@ class Classifier(object):
         self.train_unrelated_dis = 0.0
         self.train_agreed_dis = 0.0
         self.train_disagreed_dis = 0.0
+
+        self.unrelated_thre = 0.0
+        self.agreed_thre = 0.0
+        self.disagreed_thre = 0.0
 
         self.result_label = ["agreed", "disagreed", "unrelated"]
     def readTrainFile(self, path):
@@ -52,7 +57,7 @@ class Classifier(object):
     def dataPreProcess(self):
         remove_digits = str.maketrans('', '', digits)
         # remove Chinese stop words, not sure
-        stop_words = ["的", "地", "得", " "]
+        stop_words = ["的", "地", "得", " ", "了", "吗", "么", "吧", "呢", "罢", "呀", "啊", "啦", "哇", "嘛"]
 
         # train.csv
         for id in self.train_id:
@@ -164,9 +169,32 @@ class Classifier(object):
 
         return a / (b * c)
 
-    def trainCosDisProcess(self):
-        train_tot = 0
-        for i in self.train_id:
+    def selfLearn(self, tar_dict, step, tar_ratio, init_val, tot):
+    	tmp_ratio = 0
+    	ans = 0
+    	threshold = init_val
+    	while tmp_ratio <= tar_ratio:
+    		ans = 0
+    		for dis in tar_dict:
+    			if dis > threshold:
+    				ans += tar_dict[dis]
+    		tmp_ratio = ans / tot
+    		threshold -= step
+
+    	print(threshold)
+    	return threshold
+
+    def trainDisProcess(self):
+    	# distance_value -> times
+    	dis_times = {}
+    	agreed_times = {}
+    	disagreed_times = {}
+    	unrelated_times = {}
+    	train_tot = 0
+    	agreed_tot = 0
+    	disagreed_tot = 0
+    	unrelated_tot = 0
+    	for i in self.train_id:
             train_tot += 1
             # Cos dis
             '''if self.train_label[i] == 'agreed':
@@ -179,23 +207,51 @@ class Classifier(object):
                 self.train_unrelated_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])'''
             # Eu dis
             tmp = self.calEuDis(self.train_title1[i][1], self.train_title2[i][1])
+            if tmp not in dis_times:
+            	dis_times[tmp] = 1
+            else:
+            	dis_times[tmp] += 1
+
             if self.train_label[i] == 'agreed':
                 self.train_agreed_dis += tmp
+                agreed_tot += 1
+                if tmp not in agreed_times:
+                	agreed_times[tmp] = 1
+                else:
+                	agreed_times[tmp] += 1
 
             elif self.train_label[i] == 'disagreed':
                 self.train_disagreed_dis += tmp
+                disagreed_tot += 1
+                if tmp not in disagreed_times:
+                	disagreed_times[tmp] = 1
+                else:
+                	disagreed_times[tmp] += 1
 
             elif self.train_label[i] == 'unrelated':
                 self.train_unrelated_dis += tmp
+                unrelated_tot += 1
+                if tmp not in unrelated_times:
+                	unrelated_times[tmp] = 1
+                else:
+                	unrelated_times[tmp] += 1
+    	self.train_agreed_dis = self.train_agreed_dis / agreed_tot
+    	self.train_disagreed_dis = self.train_disagreed_dis / disagreed_tot
+    	self.train_unrelated_dis = self.train_unrelated_dis / unrelated_tot
+    	#print(dis_times)
+    	'''plt.figure(1)
+    	for dis in dis_times:
+    		plt.plot(dis, dis_times[dis])
+    	plt.show()'''
+    	#print(self.train_agreed_dis)     #cos: 0.13005  Eu: 22
+    	#print(self.train_disagreed_dis)  #cos: 0.01019  Eu: 23
+    	#print(self.train_unrelated_dis)  #cos: 0.09972  Eu: 29
 
-        self.train_agreed_dis = self.train_agreed_dis / train_tot
-        self.train_disagreed_dis = self.train_disagreed_dis / train_tot
-        self.train_unrelated_dis = self.train_unrelated_dis / train_tot
-        print(self.train_agreed_dis)     #cos: 0.13005  Eu: 6.5795
-        print(self.train_disagreed_dis)  #cos: 0.01019  Eu: 0.6002
-        print(self.train_unrelated_dis)  #cos: 0.09972  Eu: 20.3855
+    	self.unrelated_thre = self.selfLearn(unrelated_times, 0.5, 0.95, self.train_unrelated_dis, unrelated_tot)
+    	self.disagreed_thre = self.selfLearn(disagreed_times, 0.5, 0.95, self.train_disagreed_dis, disagreed_tot)
+    	self.agreed_thre = self.selfLearn(agreed_times, 0.5, 0.95, self.train_agreed_dis, agreed_tot)
 
-        print("train Cos Dis Pro Done")
+    	print("train Cos Dis Pro Done")
 
     def getResult(self):
         result_file = open('result.txt', 'w')
@@ -210,12 +266,10 @@ class Classifier(object):
                 result_file.write(i + "	" + "agreed" + "\n")'''
             # Eu
             tmp_dis = self.calEuDis(self.test_title1[i][1], self.test_title2[i][1])
-            if tmp_dis >= self.train_unrelated_dis:
+            if tmp_dis >= self.unrelated_thre:
                 result_file.write(i + "	" + "unrelated" + "\n")
-            elif tmp_dis >= self.train_disagreed_dis:
-                result_file.write(i + "	" + "agreed" + "\n")
             else:
-                result_file.write(i + "	" + "disagreed" + "\n")
+            	result_file.write(i + "	" + "agreed" + "\n")
 
         result_file.close()
         print("get Result Done")
@@ -226,7 +280,7 @@ if __name__ == "__main__":
     my_classifier.readTestFile("../DM_project_data/test.csv")
     my_classifier.dataPreProcess()
     my_classifier.TfIdfCalculate()
-    my_classifier.trainCosDisProcess()
+    my_classifier.trainDisProcess()
     my_classifier.getResult()
 
     print("ALL DONE")
