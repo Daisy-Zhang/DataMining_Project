@@ -68,13 +68,13 @@ class Classifier(object):
             # to lowercase
             self.train_title1[id] = self.train_title1[id].lower()
             for stopword in stop_words:
-                self.train_title1[id].replace(stopword, "")
+                self.train_title1[id] = self.train_title1[id].replace(stopword, "")
 
             self.train_title2[id] = self.train_title2[id].translate(remove_digits)
             self.train_title2[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.train_title2[id])
             self.train_title2[id] = self.train_title2[id].lower()
             for stopword in stop_words:
-                self.train_title2[id].replace(stopword, "")
+                self.train_title2[id] = self.train_title2[id].replace(stopword, "")
 
         # test.csv
         for id in self.test_id:
@@ -82,13 +82,13 @@ class Classifier(object):
             self.test_title1[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title1[id])
             self.test_title1[id] = self.test_title1[id].lower()
             for stopword in stop_words:
-                self.test_title1[id].replace(stopword, "")
+                self.test_title1[id] = self.test_title1[id].replace(stopword, "")
 
             self.test_title2[id] = self.test_title2[id].translate(remove_digits)
             self.test_title2[id] = re.sub("[+\.\“”： \t《》!\/_,$%^*()+\"\']+|[+——:;；?！，。？、~@#￥%……&*（）-]+", "", self.test_title2[id])
             self.test_title2[id] = self.test_title2[id].lower()
             for stopword in stop_words:
-                self.test_title2[id].replace(stopword, "")
+                self.test_title2[id] = self.test_title2[id].replace(stopword, "")
         
         print("DATA Pre-Process DONE")
 
