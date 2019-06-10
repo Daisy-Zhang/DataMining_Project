@@ -28,6 +28,9 @@ class Classifier(object):
         self.agreed_thre = 0.0
         self.disagreed_thre = 0.0
 
+        self.agreed_dict = {}
+        self.disagreed_dict = {}
+
         self.result_label = ["agreed", "disagreed", "unrelated"]
     def readTrainFile(self, path):
         train_reader = csv.reader(open(path, encoding='utf-8'))
@@ -135,17 +138,30 @@ class Classifier(object):
         
     def calEuDis(self, dict1, dict2):
         tmp = 0
+        tc = 0
+        dictc = {}
         for wd1 in dict1:
             if wd1 in dict2:
                 tmp += math.pow(dict1[wd1] - dict2[wd1], 2)
+                tc = abs(dict1[wd1] - dict2[wd1])
             else:
                 tmp += math.pow(dict1[wd1], 2)
+                tc = dict1[wd1]
+            if wd1 in dictc:
+                dictc[wd1] += tc
+            else:
+                dictc[wd1] = tc
         
         for wd2 in dict2:
             if wd2 not in dict1:
                 tmp += math.pow(dict2[wd2], 2)
-        
-        return math.sqrt(tmp)
+                tc = dict2[wd2]
+                if wd2 in dictc:
+                    dictc[wd2] += tc
+                else:
+                    dictc[wd2] = tc
+
+        return (dictc,math.sqrt(tmp))
     
     def calCosDis(self, dict1, dict2):
         a = 0
@@ -170,31 +186,31 @@ class Classifier(object):
         return a / (b * c)
 
     def selfLearn(self, tar_dict, step, tar_ratio, init_val, tot):
-    	tmp_ratio = 0
-    	ans = 0
-    	threshold = init_val
-    	while tmp_ratio <= tar_ratio:
-    		ans = 0
-    		for dis in tar_dict:
-    			if dis > threshold:
-    				ans += tar_dict[dis]
-    		tmp_ratio = ans / tot
-    		threshold -= step
+        tmp_ratio = 0
+        ans = 0
+        threshold = init_val
+        while tmp_ratio <= tar_ratio:
+            ans = 0
+            for dis in tar_dict:
+                if dis > threshold:
+                    ans += tar_dict[dis]
+            tmp_ratio = ans / tot
+            threshold -= step
 
-    	print(threshold)
-    	return threshold
+        print(threshold)
+        return threshold
 
     def trainDisProcess(self):
     	# distance_value -> times
-    	dis_times = {}
-    	agreed_times = {}
-    	disagreed_times = {}
-    	unrelated_times = {}
-    	train_tot = 0
-    	agreed_tot = 0
-    	disagreed_tot = 0
-    	unrelated_tot = 0
-    	for i in self.train_id:
+        dis_times = {}
+        agreed_times = {}
+        disagreed_times = {}
+        unrelated_times = {}
+        train_tot = 0
+        agreed_tot = 0
+        disagreed_tot = 0
+        unrelated_tot = 0
+        for i in self.train_id:
             train_tot += 1
             # Cos dis
             '''if self.train_label[i] == 'agreed':
@@ -206,7 +222,7 @@ class Classifier(object):
             elif self.train_label[i] == 'unrelated':
                 self.train_unrelated_dis += self.calCosDis(self.train_title1[i][1], self.train_title2[i][1])'''
             # Eu dis
-            tmp = self.calEuDis(self.train_title1[i][1], self.train_title2[i][1])
+            (dc,tmp) = self.calEuDis(self.train_title1[i][1], self.train_title2[i][1])
             if tmp not in dis_times:
             	dis_times[tmp] = 1
             else:
@@ -216,42 +232,57 @@ class Classifier(object):
                 self.train_agreed_dis += tmp
                 agreed_tot += 1
                 if tmp not in agreed_times:
-                	agreed_times[tmp] = 1
+                    agreed_times[tmp] = 1
                 else:
-                	agreed_times[tmp] += 1
+                    agreed_times[tmp] += 1
+                for wd in dc:
+                    if not wd in self.agreed_dict:
+                        self.agreed_dict[wd] = dc[wd]
+                    else:
+                        self.agreed_dict[wd] += dc[wd]
 
             elif self.train_label[i] == 'disagreed':
                 self.train_disagreed_dis += tmp
                 disagreed_tot += 1
                 if tmp not in disagreed_times:
-                	disagreed_times[tmp] = 1
+                    disagreed_times[tmp] = 1
                 else:
-                	disagreed_times[tmp] += 1
+                    disagreed_times[tmp] += 1
+                for wd in dc:
+                    if not wd in self.disagreed_dict:
+                        self.disagreed_dict[wd] = dc[wd]
+                    else:
+                        self.disagreed_dict[wd] += dc[wd]
 
             elif self.train_label[i] == 'unrelated':
                 self.train_unrelated_dis += tmp
                 unrelated_tot += 1
                 if tmp not in unrelated_times:
-                	unrelated_times[tmp] = 1
+                    unrelated_times[tmp] = 1
                 else:
-                	unrelated_times[tmp] += 1
-    	self.train_agreed_dis = self.train_agreed_dis / agreed_tot
-    	self.train_disagreed_dis = self.train_disagreed_dis / disagreed_tot
-    	self.train_unrelated_dis = self.train_unrelated_dis / unrelated_tot
-    	#print(dis_times)
-    	'''plt.figure(1)
-    	for dis in dis_times:
-    		plt.plot(dis, dis_times[dis])
-    	plt.show()'''
-    	#print(self.train_agreed_dis)     #cos: 0.13005  Eu: 22
-    	#print(self.train_disagreed_dis)  #cos: 0.01019  Eu: 23
-    	#print(self.train_unrelated_dis)  #cos: 0.09972  Eu: 29
+                    unrelated_times[tmp] += 1
+        self.train_agreed_dis = self.train_agreed_dis / agreed_tot
+        self.train_disagreed_dis = self.train_disagreed_dis / disagreed_tot
+        self.train_unrelated_dis = self.train_unrelated_dis / unrelated_tot
 
-    	self.unrelated_thre = self.selfLearn(unrelated_times, 0.5, 0.95, self.train_unrelated_dis, unrelated_tot)
-    	self.disagreed_thre = self.selfLearn(disagreed_times, 0.5, 0.95, self.train_disagreed_dis, disagreed_tot)
-    	self.agreed_thre = self.selfLearn(agreed_times, 0.5, 0.95, self.train_agreed_dis, agreed_tot)
+        for wd in self.agreed_dict:
+            self.agreed_dict[wd] /= agreed_tot
+        for wd in self.disagreed_dict:
+            self.disagreed_dict[wd] /= disagreed_tot
+        #print(dis_times)
+        '''plt.figure(1)
+        for dis in dis_times:
+            plt.plot(dis, dis_times[dis])
+        plt.show()'''
+        #print(self.train_agreed_dis)     #cos: 0.13005  Eu: 22
+        #print(self.train_disagreed_dis)  #cos: 0.01019  Eu: 23
+        #print(self.train_unrelated_dis)  #cos: 0.09972  Eu: 29
 
-    	print("train Cos Dis Pro Done")
+        self.unrelated_thre = self.selfLearn(unrelated_times, 0.5, 0.95, self.train_unrelated_dis, unrelated_tot)
+        self.disagreed_thre = self.selfLearn(disagreed_times, 0.5, 0.95, self.train_disagreed_dis, disagreed_tot)
+        self.agreed_thre = self.selfLearn(agreed_times, 0.5, 0.95, self.train_agreed_dis, agreed_tot)
+
+        print("train Cos Dis Pro Done")
 
     def getResult(self):
         result_file = open('result.txt', 'w')
@@ -265,11 +296,16 @@ class Classifier(object):
             else:
                 result_file.write(i + "	" + "agreed" + "\n")'''
             # Eu
-            tmp_dis = self.calEuDis(self.test_title1[i][1], self.test_title2[i][1])
+            (tmpdc,tmp_dis) = self.calEuDis(self.test_title1[i][1], self.test_title2[i][1])
             if tmp_dis >= self.unrelated_thre:
-                result_file.write(i + "	" + "unrelated" + "\n")
+                result_file.write(i + "\t" + "unrelated" + "\n")
             else:
-            	result_file.write(i + "	" + "agreed" + "\n")
+                (dict_a,dis_a) = self.calEuDis(tmpdc, self.agreed_dict)
+                (dict_d,dis_d) = self.calEuDis(tmpdc, self.disagreed_dict)
+                if dis_a < dis_d:
+                	result_file.write(i + "\t" + "agreed" + "\n")
+                else:
+                    result_file.write(i + "\t" + "disagreed" + "\n")
 
         result_file.close()
         print("get Result Done")
